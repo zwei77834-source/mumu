@@ -1,0 +1,107 @@
+name: Update lottery data and deployname: Update lottery data and deploy
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "*/30 * * * *"
+
+permissions:
+  contents: write
+
+jobs:
+  update-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Update lottery_data.json from source
+        run: python scripts/update_lottery.py
+
+      - name: Commit updated data if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add lottery_data.json
+          if git diff --cached --quiet; then
+            echo "No data changes."
+          else
+            git commit -m "Update lottery data"
+            git push
+          fi
+
+      - name: Install SSH client
+        run: sudo apt-get update && sudo apt-get install -y openssh-client
+
+      - name: Prepare SSH key
+        env:
+          ECS_SSH_KEY: ${{ secrets.ECS_SSH_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          printf "%s" "$ECS_SSH_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -p "${{ secrets.ECS_PORT }}" -H "${{ secrets.ECS_HOST }}" >> ~/.ssh/known_hosts
+
+      - name: Upload lottery_data.json to server
+        run: scp -P "${{ secrets.ECS_PORT }}" lottery_data.json "${{ secrets.ECS_USER }}@${{ secrets.ECS_HOST }}:/opt/liuhe_api_backend_8081/lottery_data.json"
+
+      - name: Restart service
+        run: ssh -p "${{ secrets.ECS_PORT }}" "${{ secrets.ECS_USER }}@${{ secrets.ECS_HOST }}" "systemctl restart liuhe-api.service && systemctl status liuhe-api.service --no-pager"
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "*/30 * * * *"
+
+permissions:
+  contents: write
+
+jobs:
+  update-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Update lottery_data.json from source
+        run: python scripts/update_lottery.py
+
+      - name: Commit updated data if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add lottery_data.json
+          if git diff --cached --quiet; then
+            echo "No data changes."
+          else
+            git commit -m "Update lottery data"
+            git push
+          fi
+
+      - name: Install SSH client
+        run: sudo apt-get update && sudo apt-get install -y openssh-client
+
+      - name: Prepare SSH key
+        env:
+          ECS_SSH_KEY: ${{ secrets.ECS_SSH_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          printf "%s" "$ECS_SSH_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -p "${{ secrets.ECS_PORT }}" -H "${{ secrets.ECS_HOST }}" >> ~/.ssh/known_hosts
+
+      - name: Upload lottery_data.json to server
+        run: scp -P "${{ secrets.ECS_PORT }}" lottery_data.json "${{ secrets.ECS_USER }}@${{ secrets.ECS_HOST }}:/opt/liuhe_api_backend_8081/lottery_data.json"
+
+      - name: Restart service
+        run: ssh -p "${{ secrets.ECS_PORT }}" "${{ secrets.ECS_USER }}@${{ secrets.ECS_HOST }}" "systemctl restart liuhe-api.service && systemctl status liuhe-api.service --no-pager"
